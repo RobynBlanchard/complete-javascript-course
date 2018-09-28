@@ -25,8 +25,16 @@ var budgetController = (function() {
         percentage: -1
     }
 
+    function updateTotals(type, amount) {
+        data.totals[type] += amount
+    }
+
 
     return {
+        testing: function() {
+            console.log(data);
+            console.log(data.allItems);
+        },
         addItem: function(type, desc, val) {
             var newItem, ID;
 
@@ -37,7 +45,6 @@ var budgetController = (function() {
                 ID = data.allItems[type][data.allItems[type].length - 1].id + 1;
             }
 
-
             if (type === 'expense') {
                 newItem = new Expense(ID, desc, val);
             } else if (type == 'income') {
@@ -46,12 +53,28 @@ var budgetController = (function() {
 
             data.allItems[type].push(newItem);
 
-            data.totals[type] += newItem.value;
+            // data.totals[type] += newItem.value;
 
+            updateTotals(type, newItem.value);
 
             return newItem
         
         },
+
+        deleteItem: function(type, id) {
+            var ids, index
+
+            ids = data.allItems[type].map(function(current) {
+                return current.id;
+            });
+
+            index = ids.indexOf(id);
+
+            if (index !== -1) {
+                data.allItems[type].splice(index, 1);
+            }
+        },
+
         calculateBudget: function() {
             var sumIncome = data.totals.income - data.totals.expense;
             data.budget = sumIncome;
@@ -86,7 +109,8 @@ var UIController = (function() {
         budgetLabel: '.budget__value',
         totalIncomeLabel: '.budget__income--value',
         totalExpenseLabel: '.budget__expenses--value',
-        percentageLabel: '.budget__expenses--percentage'
+        percentageLabel: '.budget__expenses--percentage',
+        container: '.container'
 
     }
 
@@ -119,6 +143,10 @@ var UIController = (function() {
 
 
             document.querySelector(element).insertAdjacentHTML('beforeend', newHtml);
+        },
+        deleteListItem: function(selectorID) {
+            var element = document.getElementById(selectorID);
+            element.parentNode.removeChild(element);
         },
         clearFields: function() {
             var fields = document.querySelectorAll(DOMStrings.inputDescription + ',' + DOMStrings.inputValue);
@@ -156,11 +184,23 @@ var controller = (function(budgetCtrl, UICtrl) {
         budgetCtrl.calculateBudget();
 
         var summary = budgetCtrl.getBudget();
-        return summary
 
-
-
+        UICtrl.displayBudget(summary);
     };
+
+    var setUpEventListeners = function() {
+        document.querySelector(DOM.inputButton).addEventListener('click', ctrlAddItem);
+
+        document.addEventListener('keypress', function() {
+            if (event.keyCode == 13 || event.which == 13) {
+                ctrlAddItem();
+            }
+        });
+
+        
+        document.querySelector(DOM.container).addEventListener('click', ctrlDelteItem);
+    };
+
 
     var ctrlAddItem = function() {
 
@@ -172,22 +212,30 @@ var controller = (function(budgetCtrl, UICtrl) {
             UICtrl.addListItem(newItem, input.type);
     
             UICtrl.clearFields();
-    
-            var budgetAndStuff = updateBudget();
 
-            UICtrl.displayBudget(budgetAndStuff);
+            updateBudget();    
         }
     };
 
-    var setUpEventListeners = function() {
-        document.querySelector(DOM.inputButton).addEventListener('click', ctrlAddItem);
+    var ctrlDelteItem = function(event) {
+        console.log(event);
+        var itemID, splitID, type, id;
+        // how does it know specific button clicked? - target
 
-        document.addEventListener('keypress', function() {
-            if (event.keyCode == 13 || event.which == 13) {
-                ctrlAddItem();
-            }
-        });
-    }
+        itemID = event.target.parentNode.parentNode.parentNode.parentNode.id;
+        console.log(itemID)
+        if (itemID) {
+            splitID = itemID.split('-');
+            type = splitID[0];
+            id = parseInt(splitID[1]);
+
+            budgetCtrl.deleteItem(type, id);
+
+            UICtrl.deleteListItem(itemID);
+
+            updateBudget();
+        };
+    };
 
     return {
         init: function() {
